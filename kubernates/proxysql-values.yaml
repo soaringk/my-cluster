@@ -1,0 +1,70 @@
+# Default admin username
+proxysql:
+  admin:
+    username: admin
+    password: admin
+  clusterAdmin:
+    username: cluster1
+    password: secret1pass
+# 在proxysql中初始化MGR集群的相关信息
+# 1. 向mysql_servers表插入MGR各member的地址信息，其中当前的master示例放入hostgroup 1中，所有示例放入hostgroup 2中
+# 2. 向mysql_group_replication_hostgroups表插入proxysql使用hostgroup的规则
+# * proxysql会导流写请求到writer_hostgroup，即hostgrup 1
+# * proxysql会导流读请求到reader_hostgroup，即hostgrup 2
+# * backup_writer_hostgroup的id为3
+# * offline_hostgroup的id为4
+# * active表明这条规则是生效的
+# * max_writers表明最多只有一个writer，如果监测到多个实例是可写的，则只会将一个实例移入writer_hostgroup，其它实例会被移入backup_writer_hostgroup
+# * writer_is_also_reader表明可写实例也会被作为reader
+# * max_transactions_behind表明后端最大允许的事务数
+# 3. 插入允许连接的帐户信息，注意要与MGR集群中的访问用户信息一致
+# 4. 插入proxysql读写分离规则
+  additionConfig: |
+    mysql_servers =
+    (
+        { address="mysql-0.mysql-gvr", port=3306 , hostgroup=1, max_connections=2048 },
+        { address="mysql-0.mysql-gvr", port=3306 , hostgroup=2, max_connections=2048 },
+        { address="mysql-1.mysql-gvr", port=3306 , hostgroup=2, max_connections=2048 },
+        { address="mysql-2.mysql-gvr", port=3306 , hostgroup=2, max_connections=2048 }
+    )
+    mysql_group_replication_hostgroups =
+    (
+        { writer_hostgroup=1 , backup_writer_hostgroup=3, reader_hostgroup=2, offline_hostgroup=4, active=1, max_writers=1, writer_is_also_reader=1, max_transactions_behind=100 }
+    )
+    mysql_users =
+    (
+        { username = "biz_user" , password = "123456" , default_hostgroup = 1 , active = 1 }
+    )
+    mysql_query_rules =
+    (
+        {
+            rule_id=100
+            active=1
+            match_pattern="^SELECT .* FOR UPDATE"
+            destination_hostgroup=1
+            apply=1
+        },
+        {
+            rule_id=200
+            active=1
+            match_pattern="^SELECT .*"
+            destination_hostgroup=2
+            apply=1
+        },
+        {
+            rule_id=300
+            active=1
+            match_pattern=".*"
+            destination_hostgroup=1
+            apply=1
+        }
+    )
+# MySQL Settings
+mysql:
+  # This is the monitor user, just needs usage rights on the databases
+  monitor:
+    username: proxymonitor
+    password: proxymonitor
+  admin:
+    username: root
+    password: 3txxjMWe6V5zugsD

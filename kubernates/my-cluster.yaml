@@ -1,0 +1,63 @@
+apiVersion: catalog.kubedb.com/v1alpha1
+kind: MySQLVersion
+metadata:
+  name: "5.7.25"
+  labels:
+    app: kubedb
+spec:
+  version: "5.7.25"
+  db:
+    image: "kubedb/mysql:5.7.25"
+  exporter:
+    image: "kubedb/mysqld-exporter:v0.11.0"
+  tools:
+    image: "kubedb/mysql-tools:5.7.25"
+  podSecurityPolicies:
+    databasePolicyName: "mysql-db"
+    snapshotterPolicyName: "mysql-snapshot"
+  initContainer:
+    image: "kubedb/mysql-tools:5.7.25"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-custom-config
+  namespace: demo
+data:
+  my-config.cnf: |
+    [mysqld]
+    max_connections = 2048
+    read_buffer_size = 4194304
+    skip-name-resolve
+    innodb_lru_scan_depth = 256
+    character-set-server = utf8mb4
+    collation-server = utf8mb4_general_ci
+---
+apiVersion: kubedb.com/v1alpha1
+kind: MySQL
+metadata:
+  name: mysql
+  namespace: demo
+spec:
+  version: "5.7.25"
+  replicas: 3
+  topology:
+    mode: GroupReplication
+    group:
+      name: "eb0f421b-9300-45f2-9f68-9ad29edc3324"
+      baseServerID: 100
+  storageType: Durable
+  configSource:
+    configMap:
+      name: my-custom-config
+  storage:
+    storageClassName: "hostpath"
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+  terminationPolicy: WipeOut
+  updateStrategy:
+    type: RollingUpdate
+---

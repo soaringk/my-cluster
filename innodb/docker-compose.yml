@@ -1,0 +1,51 @@
+version: "3.6"
+
+x-env-files: &env-files
+  env_file:
+    - .env
+
+services:
+  mysql-manager-1:
+    image: mysql/mysql-cluster:7.5
+    <<: *env-files
+    networks:
+      - my-cluster:
+        ipv4_address: 172.18.0.1
+    restart: "always"
+    volumes:
+      - ./cnf/my.cnf:/etc/my.cnf
+      - ./cnf/hosts:/etc/hosts
+      - ./cnf/config:/opt
+    command: ndb_mgmd
+
+  mysql-manager-2:
+    image: mysql/mysql-cluster:7.5
+    <<: *env-files
+    networks:
+      - my-cluster:
+        ipv4_address: 172.18.0.2
+    restart: "always"
+    volumes:
+      - ./cnf/my.cnf:/etc/my.cnf
+      - ./cnf/hosts:/etc/hosts
+      - ./cnf/config:/opt
+    command: ndb_mgmd
+
+  data-node-1:
+    image: mysql/mysql-cluster:7.5
+    <<: *env-files
+    networks:
+      - my-cluster:
+        ipv4_address: 172.18.0.3
+    restart: "always"
+    volumes:
+      - ./cnf/my.cnf:/etc/my.cnf
+      - ./cnf/hosts:/etc/hosts
+      - ./cnf/config:/opts
+    command: ndbd
+
+networks:
+  my-cluster:
+    ipam:
+      config:
+        - subnet: 172.18.0.0/16
