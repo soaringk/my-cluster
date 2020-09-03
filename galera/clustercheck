@@ -1,0 +1,71 @@
+#!/bin/bash
+#
+# Script to make a proxy (ie HAProxy) capable of monitoring Percona XtraDB Cluster nodes properly
+#
+# Author: Olaf van Zandwijk <olaf.vanzandwijk@nedap.com>
+# Author: Raghavendra Prabhu <raghavendra.prabhu@percona.com>
+#
+# Documentation and download: https://github.com/olafz/percona-clustercheck
+#
+# Based on the original script from Unai Rodriguez
+#
+set -e
+
+if [ -f /etc/sysconfig/clustercheck ]; then
+    . /etc/sysconfig/clustercheck
+fi
+
+MYSQL_USERNAME="${MYSQL_USERNAME:-chk_cluster}"
+MYSQL_PASSWORD="${MYSQL_PASSWORD:-chk_cluster_passwd!}"
+MYSQL_HOST="$3"
+MYSQL_PORT="$4"
+AVAILABLE_WHEN_DONOR=${AVAILABLE_WHEN_DONOR:-0}
+LOG_FILE="${LOG_FILE:-/var/log/chk_cluster_log}"
+AVAILABLE_WHEN_READONLY=${AVAILABLE_WHEN_READONLY:-1}
+
+#Timeout exists for instances where mysqld may be hung
+TIMEOUT=10
+
+EXTRA_ARGS=""
+if [[ -n "$MYSQL_USERNAME" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --user=${MYSQL_USERNAME}"
+fi
+if [[ -n "$MYSQL_PASSWORD" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --password=${MYSQL_PASSWORD}"
+fi
+if [[ -n "$MYSQL_HOST" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --host=${MYSQL_HOST}"
+fi
+if [[ -n "$MYSQL_PORT" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --port=${MYSQL_PORT}"
+fi
+MYSQL_CMDLINE="mysql -nNE --connect-timeout=$TIMEOUT ${EXTRA_ARGS}"
+#
+# Perform the query to check the wsrep_local_state
+#
+WSREP_STATUS=$($MYSQL_CMDLINE -e "SHOW STATUS LIKE 'wsrep_local_state';" \
+    2>> ${LOG_FILE} | tail -1 2>> ${LOG_FILE})
+
+if [[ "${WSREP_STATUS}" == "4" ]] || [[ "${WSREP_STATUS}" == "2" && ${AVAILABLE_WHEN_DONOR} == 1 ]]; then
+    # Check only when set to 0 to avoid latency in response.
+    if [[ $AVAILABLE_WHEN_READONLY -eq 0 ]]; then
+        READ_ONLY=$($MYSQL_CMDLINE -e "SHOW GLOBAL VARIABLES LIKE 'read_only';" \
+                    2>> ${LOG_FILE} | tail -1 2>> ${LOG_FILE})
+        if [[ "${LOG_FILE}" == "ON" ]]; then
+            # Percona XtraDB Cluster node local state is 'Synced', but it is in
+            # read-only mode. The variable AVAILABLE_WHEN_READONLY is set to 0.
+            # Shell return-code is 1
+            echo "Cluster Node is read-only." >> ${LOG_FILE}
+            exit 1
+        fi
+    fi
+    # Percona XtraDB Cluster node local state is 'Synced'
+    # Shell return-code is 0
+    echo "Cluster Node is synced." >> ${LOG_FILE}
+    exit 0
+else
+    # Percona XtraDB Cluster node local state is not 'Synced'
+    # Shell return-code is 1
+    echo "Cluster Node is not synced." >> ${LOG_FILE}
+    exit 1
+fi

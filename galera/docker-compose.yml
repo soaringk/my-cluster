@@ -1,0 +1,107 @@
+version: '2.1'
+
+services:
+  galera-0:
+    image: docker.io/bitnami/mariadb-galera:10.5
+    networks:
+      galera_net:
+        ipv4_address: 172.20.128.1
+        aliases:
+          - galera-0
+    env_file:
+      - bootstrap.env
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/mariadb-galera/healthcheck.sh']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+
+  galera-1:
+    image: docker.io/bitnami/mariadb-galera:10.5
+    networks:
+      galera_net:
+        ipv4_address: 172.20.128.2
+        aliases:
+          - galera-1
+    environment:
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://galera-0:4567,0.0.0.0:4567
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=12345678
+      - ALLOW_EMPTY_PASSWORD=yes
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/mariadb-galera/healthcheck.sh']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      galera-0:
+        condition: service_healthy
+
+  galera-2:
+    image: docker.io/bitnami/mariadb-galera:10.5
+    networks:
+      galera_net:
+        ipv4_address: 172.20.128.3
+        aliases:
+          - galera-2
+    environment:
+      - MARIADB_GALERA_CLUSTER_ADDRESS=gcomm://galera-0:4567,0.0.0.0:4567
+      - MARIADB_GALERA_MARIABACKUP_PASSWORD=12345678
+      - ALLOW_EMPTY_PASSWORD=yes
+    healthcheck:
+      test: ['CMD', '/opt/bitnami/scripts/mariadb-galera/healthcheck.sh']
+      interval: 15s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      galera-0:
+        condition: service_healthy
+
+  haproxy_1:
+    build: .
+    image: haproxy_keepalived:latest
+    restart: on-failure
+    ports:
+      - 6301:6301
+    networks:
+      galera_net:
+        ipv4_address: 172.20.128.11
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./haproxy_1.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./keepalived_1.conf:/etc/keepalived/keepalived.conf
+    depends_on:
+      galera-0:
+        condition: service_healthy
+      galera-1:
+        condition: service_healthy
+      galera-2:
+        condition: service_healthy
+
+  haproxy_2:
+    build: .
+    image: haproxy_keepalived:latest
+    restart: on-failure
+    ports:
+      - 6302:6301
+    networks:
+      galera_net:
+        ipv4_address: 172.20.128.12
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./haproxy_2.cfg:/usr/local/etc/haproxy/haproxy.cfg
+      - ./keepalived_2.conf:/etc/keepalived/keepalived.conf
+    depends_on:
+      galera-0:
+        condition: service_healthy
+      galera-1:
+        condition: service_healthy
+      galera-2:
+        condition: service_healthy
+
+networks:
+  galera_net:
+    ipam:
+      config:
+        - subnet: 172.20.128.0/16
