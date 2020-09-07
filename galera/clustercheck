@@ -15,10 +15,10 @@ if [ -f /etc/sysconfig/clustercheck ]; then
     . /etc/sysconfig/clustercheck
 fi
 
-MYSQL_USERNAME="${MYSQL_USERNAME:-chk_cluster}"
-MYSQL_PASSWORD="${MYSQL_PASSWORD:-chk_cluster_passwd!}"
-MYSQL_HOST="$3"
-MYSQL_PORT="$4"
+MARIADB_USER="${MARIADB_USER:-chk_cluster}"
+MARIADB_PASSWORD="${MARIADB_PASSWORD:-chk_cluster_passwd!}"
+SERVER_HOST="$3"
+SERVER_PORT="$4"
 AVAILABLE_WHEN_DONOR=${AVAILABLE_WHEN_DONOR:-0}
 LOG_FILE="${LOG_FILE:-/var/log/chk_cluster_log}"
 AVAILABLE_WHEN_READONLY=${AVAILABLE_WHEN_READONLY:-1}
@@ -27,17 +27,17 @@ AVAILABLE_WHEN_READONLY=${AVAILABLE_WHEN_READONLY:-1}
 TIMEOUT=10
 
 EXTRA_ARGS=""
-if [[ -n "$MYSQL_USERNAME" ]]; then
-    EXTRA_ARGS="$EXTRA_ARGS --user=${MYSQL_USERNAME}"
+if [[ -n "$MARIADB_USER" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --user=${MARIADB_USER}"
 fi
-if [[ -n "$MYSQL_PASSWORD" ]]; then
-    EXTRA_ARGS="$EXTRA_ARGS --password=${MYSQL_PASSWORD}"
+if [[ -n "$MARIADB_PASSWORD" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --password=${MARIADB_PASSWORD}"
 fi
-if [[ -n "$MYSQL_HOST" ]]; then
-    EXTRA_ARGS="$EXTRA_ARGS --host=${MYSQL_HOST}"
+if [[ -n "$SERVER_HOST" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --host=${SERVER_HOST}"
 fi
-if [[ -n "$MYSQL_PORT" ]]; then
-    EXTRA_ARGS="$EXTRA_ARGS --port=${MYSQL_PORT}"
+if [[ -n "$SERVER_PORT" ]]; then
+    EXTRA_ARGS="$EXTRA_ARGS --port=${SERVER_PORT}"
 fi
 MYSQL_CMDLINE="mysql -nNE --connect-timeout=$TIMEOUT ${EXTRA_ARGS}"
 #
