@@ -98,8 +98,6 @@ services:
         ipv4_address: 172.20.128.12
     cap_add:
       - NET_ADMIN
-    env_file:
-      - haproxy.env
     volumes:
       - ./haproxy_2.cfg:/usr/local/etc/haproxy/haproxy.cfg
       - ./keepalived_2.conf:/etc/keepalived/keepalived.conf
