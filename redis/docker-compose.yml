@@ -4,84 +4,66 @@ services:
   redis-node-0:
     image: redis:6
     ports:
-      - "7000:7000"
-      - "17000:17000"
-    networks:
-      redis-net:
-        ipv4_address: 172.20.128.2
+      - 7000:7000
+      - 17000:17000
     volumes:
       - "./redis-cluster.conf:/etc/redis/redis-cluster.conf"
     restart: always
-    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7000", --cluster-announce-ip, "172.20.128.2", --cluster-announce-port, "7000", --cluster-announce-bus-port, "17000" ]
+    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7000", --cluster-announce-ip, "${ip:-192.168.65.2}" ]
 
   redis-node-1:
     image: redis:6
     ports:
-      - "7001:7001"
-      - "17001:17001"
-    networks:
-      redis-net:
-        ipv4_address: 172.20.128.3
+      - 7001:7001
+      - 17001:17001
     volumes:
       - "./redis-cluster.conf:/etc/redis/redis-cluster.conf"
     restart: always
-    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7001", --cluster-announce-ip, "172.20.128.3", --cluster-announce-port, "7001", --cluster-announce-bus-port, "17001" ]
+    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7001", --cluster-announce-ip, "${ip:-192.168.65.2}" ]
 
   redis-node-2:
     image: redis:6
     ports:
-      - "7002:7002"
-      - "17002:17002"
-    networks:
-      redis-net:
-        ipv4_address: 172.20.128.4
+      - 7002:7002
+      - 17002:17002
     volumes:
       - "./redis-cluster.conf:/etc/redis/redis-cluster.conf"
     restart: always
-    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7002", --cluster-announce-ip, "172.20.128.4", --cluster-announce-port, "7002", --cluster-announce-bus-port, "17002" ]
+    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7002", --cluster-announce-ip, "${ip:-192.168.65.2}" ]
 
   redis-node-3:
     image: redis:6
     ports:
-      - "7003:7003"
-      - "17003:17003"
-    networks:
-      redis-net:
-        ipv4_address: 172.20.128.5
+      - 7003:7003
+      - 17003:17003
     volumes:
       - "./redis-cluster.conf:/etc/redis/redis-cluster.conf"
     restart: always
-    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7003", --cluster-announce-ip, "172.20.128.5", --cluster-announce-port, "7003", --cluster-announce-bus-port, "17003" ]
+    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7003", --cluster-announce-ip, "${ip:-192.168.65.2}" ]
 
   redis-node-4:
     image: redis:6
     ports:
-      - "7004:7004"
-      - "17004:17004"
-    networks:
-      redis-net:
-        ipv4_address: 172.20.128.6
+      - 7004:7004
+      - 17004:17004
     volumes:
       - "./redis-cluster.conf:/etc/redis/redis-cluster.conf"
     restart: always
-    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7004", --cluster-announce-ip, "172.20.128.6", --cluster-announce-port, "7004", --cluster-announce-bus-port, "17004" ]
+    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7004", --cluster-announce-ip, "${ip:-192.168.65.2}" ]
 
   redis-node-5:
     image: redis:6
     ports:
-      - "7005:7005"
-      - "17005:17005"
-    networks:
-      redis-net:
-        ipv4_address: 172.20.128.7
+      - 7005:7005
+      - 17005:17005
     volumes:
       - "./redis-cluster.conf:/etc/redis/redis-cluster.conf"
     restart: always
-    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7005", --cluster-announce-ip, "172.20.128.7", --cluster-announce-port, "7005", --cluster-announce-bus-port, "17005" ]
+    entrypoint: [ redis-server, /etc/redis/redis-cluster.conf, --port, "7005", --cluster-announce-ip, "${ip:-192.168.65.2}" ]
 
   redis-cluster-creator:
     image: redis:6
-    entrypoint: [ /bin/sh,-c,'echo "yes" | redis-cli -a 123456 --cluster create 172.20.128.2:7000 172.20.128.3:7001 172.20.128.4:7002 172.20.128.5:7003 172.20.128.6:7004 172.20.128.7:7005 --cluster-replicas 1' ]
+    entrypoint: [ /bin/sh,-c,'echo "yes\n" | redis-cli -a 123456 --cluster create ${ip:-192.168.65.2}:7000 ${ip:-192.168.65.2}:7001 ${ip:-192.168.65.2}:7002 ${ip:-192.168.65.2}:7003 ${ip:-192.168.65.2}:7004 ${ip:-192.168.65.2}:7005 --cluster-replicas 1' ]
     depends_on:
       - redis-node-0
       - redis-node-1
@@ -92,11 +74,9 @@ services:
 
   mysql:
     image: mysql:5.7
-    restart: on-failure
     ports:
-      - '3306:3306'
-    networks:
-      redis-net:
+      - 3306:3306
+    restart: on-failure
     environment:
       MYSQL_DATABASE: 'redis'
       MYSQL_ROOT_PASSWORD: '123456'
@@ -104,8 +84,12 @@ services:
       - "./src/main/resources/db/scheme.sql:/docker-entrypoint-initdb.d/0_init.sql"
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
 
-networks:
-  redis-net:
-    ipam:
-      config:
-        - subnet: 172.20.128.0/16
+  haproxy:
+    image: haproxy:2.2.2-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - mysql
+      - redis-cluster-creator
