@@ -1,13 +1,10 @@
 package net.demo.redis_demo.config;
 
-import net.demo.redis_demo.component.ClusterConfigurationProperties;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
-import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -22,19 +19,6 @@ import java.time.Duration;
 @Configuration
 @EnableCaching
 public class RedisConfig {
-
-    /**
-     * Type safe representation of application.properties
-     */
-    @Autowired
-    ClusterConfigurationProperties clusterProperties;
-
-    public @Bean
-    RedisConnectionFactory connectionFactory() {
-
-        return new LettuceConnectionFactory(
-                new RedisClusterConfiguration(clusterProperties.getNodes()));
-    }
 
     /**
      * 默认情况下的模板只能支持RedisTemplate<String, String>，也就是只能存入字符串，因此支持序列化
